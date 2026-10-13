@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-    <!-- System Version & Compatibility Signature: CHY_V100_BUILD_09102026_FLAGSHIP -->
+    <!-- System Version & Compatibility Signature: CHY_V150_BUILD_13102026_FLAGSHIP -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="system-version" content="CHY-V105-09102026-FLAGSHIP">
-    <title>CHY學習考題管理系統 V105旗艦版09102026</title>
+    <meta name="system-version" content="CHY-V150-13102026-FLAGSHIP">
+    <title>CHY學習考題管理系統 V150旗艦版13.10.2026</title>
     
     <!-- PWA & Web App Icons -->
     <link rel="apple-touch-icon" sizes="180x180" href="https://i.imgur.com/eIA4rcg.jpeg">
@@ -1168,7 +1168,7 @@
                 <div>
                     <h1 class="font-black text-xl text-slate-800 tracking-wide flex items-center gap-2">
                         <span>CHY學習考題管理系統</span>
-                        <span class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-pink-100 text-pink-700 border border-pink-300">V100旗艦版09102026</span>
+                        <span class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-pink-100 text-pink-700 border border-pink-300">V150旗艦版13.10.2026</span>
                     </h1>
                 </div>
             </div>
@@ -1491,6 +1491,9 @@
                                     <button onclick="reissueSelectedHistoryQuestions()" class="btn-crystal crystal-pink px-3 py-1.5 text-xs">
                                         <i class="fa-solid fa-rotate-left mr-1"></i>重發選取題目 (單/多項)
                                     </button>
+                                    <button onclick="deleteSelectedHistoryRecords()" class="btn-crystal crystal-red px-3 py-1.5 text-xs">
+                                        <i class="fa-solid fa-trash mr-1"></i>刪除選取記錄 (單/多項)
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -1509,6 +1512,7 @@
                                         <th class="p-3 text-center">結果</th>
                                         <th class="p-3 text-center">重發狀態</th>
                                         <th class="p-3 text-center">操作</th>
+                                        <th class="p-3 text-center">刪除</th>
                                     </tr>
                                 </thead>
                                 <tbody id="answerHistoryTableBody" class="divide-y divide-slate-200 font-bold">
@@ -1808,10 +1812,16 @@
                 <div id="childTabQuiz" class="space-y-6">
                     <div id="childDifficultyButtons" class="flex flex-wrap gap-2">
                     </div>
-
+                    <!-- 【V150 移動】難度題數統計已移至答題卡片頭部 -->
                     <div id="quizCard" class="watercolor-card p-6 max-w-3xl mx-auto space-y-6">
                         <div class="flex justify-between items-center border-b border-slate-200 pb-3">
                             <span id="quizBadge" class="bg-purple-100 text-purple-800 text-xs font-black px-3 py-1 rounded-full border border-purple-300">請選取難度開始答題</span>
+                            <!-- 【V150 新增】答題統計橫幅（置中顯示） -->
+                            <div id="quizStatsInline" class="flex flex-wrap gap-3 text-xs font-black hidden">
+                                <span class="text-indigo-700"><i class="fa-solid fa-layer-group mr-1"></i>區間總題數：<span id="statTotalQuestions" class="text-indigo-900">0</span></span>
+                                <span class="text-emerald-700"><i class="fa-solid fa-circle-check mr-1"></i>已回答：<span id="statAnsweredQuestions" class="text-emerald-900">0</span></span>
+                                <span class="text-amber-700"><i class="fa-solid fa-clock mr-1"></i>未回答：<span id="statUnansweredQuestions" class="text-amber-900">0</span></span>
+                            </div>
                             <div class="flex items-center gap-3">
                                 <span id="quizTimerDisplay" class="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-sm font-black px-4 py-1.5 rounded-full border-2 border-white shadow-lg hidden" style="animation: pulse 2s infinite;">
                                     <i class="fa-solid fa-clock mr-1.5"></i><span id="quizTimerText">00:00</span>
@@ -1857,16 +1867,9 @@
                             </div>
                         </div>
 
-                        <div id="flashActiveRulesQuizHint" class="hidden text-xs text-slate-500 bg-amber-50/80 p-3 rounded-2xl border border-amber-200">
-                            <div class="flex items-center gap-2">
-                                <i class="fa-solid fa-bolt text-amber-500"></i>
-                                <span class="font-bold">即時啟用觸發規則：</span>
-                                <div id="flashActiveRulesBadges" class="flex flex-wrap gap-1.5">
-                                    <!-- Active rule badges -->
-                                </div>
-                            </div>
-                            <p class="text-[10px] text-slate-400 mt-1">達標時將自動召喚專屬 IP 慶祝動畫</p>
-                        </div>
+                        <!-- 【V150 移除】即時啟用觸發規則文字框已移除，IP慶祝動畫功能保留 -->
+                        <div id="flashActiveRulesQuizHint" class="hidden"></div>
+                        <div id="flashActiveRulesBadges" class="hidden"></div>
                         <div id="mcAnswerArea" class="grid grid-cols-1 md:grid-cols-2 gap-3 hidden">
                             <button onclick="submitMultipleChoice('A')" id="mcBtnA" class="btn-crystal crystal-blue p-4 text-left justify-start text-sm font-black">
                                 <span class="w-8 h-8 bg-white/30 rounded-full flex items-center justify-center font-black mr-3 text-base">A</span>
@@ -2555,7 +2558,7 @@
         </div>
         <!-- Footer -->
     <footer class="bg-white/70 border-t border-pink-200 py-4 text-center text-xs text-slate-600 font-bold mt-auto">
-        CHY學習考題管理系統 &copy; 2026. All Rights Reserved. (V100旗艦版09102026)
+        CHY學習考題管理系統 &copy; 2026. All Rights Reserved. (V150旗艦版13.10.2026)
     </footer>
 
     <!-- FIREBASE & SYSTEM ENGINE -->
@@ -2994,7 +2997,7 @@
             throw new Error("Firebase config validation failed");
         }
 
-        const VERSION_TAG = "CHY_V100_BUILD_09102026_FLAGSHIP";
+        const VERSION_TAG = "CHY_V150_BUILD_13102026_FLAGSHIP";
                 const FIREBASE_NODE_KEY = "chy_v36_system_data";
 
         let app = null;
@@ -4250,19 +4253,22 @@ function switchPortal(role) {
                         const answeredCount = childAnswers.length;
                         const isComplete = answeredCount >= questions.length && questions.length > 0;
                         
-                        // 狀態顏色：紅色=已完成，綠色=有權限可查看，灰色=無權限
+                        // 狀態顏色：綠色=有權限可查看，灰色=無權限（已完成時不顯示重發重做）
                         let btnClass, btnText, icon;
                         if (isComplete) {
+                            // 【V150 修改】已完成時顯示完成標記而非「重發重做」
                             btnClass = 'bg-emerald-600 text-white border-emerald-700';
-                            btnText = '重發重做 ' + child.name;
-                            icon = 'fa-check-circle';
+                            btnText = '已完賽 ' + child.name + '(' + answeredCount + '/' + questions.length + ')';
+                            icon = 'fa-trophy';
                         } else if (hasAccess) {
                             btnClass = 'bg-green-500 text-white border-green-600';
-                            btnText = '可查閱 ' + child.name;
+                            // 【V150 新增】加入實時完成題數標記
+                            btnText = '可查閱 ' + child.name + '(' + answeredCount + '/' + questions.length + ')';
                             icon = 'fa-eye';
                         } else {
                             btnClass = 'bg-gray-400 text-white border-gray-500';
-                            btnText = '不可查閱 ' + child.name;
+                            // 【V150 新增】加入實時完成題數標記
+                            btnText = '不可查閱 ' + child.name + '(' + answeredCount + '/' + questions.length + ')';
                             icon = 'fa-lock';
                         }
                         
@@ -5018,6 +5024,11 @@ function switchPortal(role) {
                             重發此題
                         </button>
                     </td>
+                    <td class="p-3 text-center">
+                        <button onclick="deleteHistoryRecord('${h.id}')" class="btn-crystal crystal-red px-2.5 py-1 text-[11px]">
+                            刪除
+                        </button>
+                    </td>
                 </tr>
             `).join('');
 
@@ -5082,6 +5093,54 @@ function switchPortal(role) {
                 saveDataToFirebase();
                 renderAnswerHistory();
                 alert(`已成功重發該題目至 [${targetDiff}] 難度區間！`);
+            }
+        };
+
+        // ============================================
+        // 刪除作答記錄功能
+        // ============================================
+        window.deleteHistoryRecord = function(histId) {
+            try {
+                const parent = getCurrentParent();
+                if (!parent) return;
+
+                if (!confirm('確定要刪除這筆作答記錄嗎？此操作無法復原。')) return;
+
+                const idx = parent.answerHistory.findIndex(h => h.id === histId);
+                if (idx !== -1) {
+                    parent.answerHistory.splice(idx, 1);
+                    saveDataToFirebase();
+                    renderAnswerHistory();
+                    alert('已成功刪除該作答記錄！');
+                }
+            } catch(e) {
+                console.error('Delete history record error:', e);
+                alert('刪除記錄時發生錯誤');
+            }
+        };
+
+        window.deleteSelectedHistoryRecords = function() {
+            try {
+                const parent = getCurrentParent();
+                if (!parent) return;
+
+                const selectedCbs = Array.from(document.querySelectorAll('.history-checkbox:checked'));
+                if (selectedCbs.length === 0) return alert('請先勾選欲刪除的作答記錄！');
+
+                if (!confirm(`確定要刪除選取的 ${selectedCbs.length} 筆作答記錄嗎？此操作無法復原。`)) return;
+
+                const idsToDelete = selectedCbs.map(cb => cb.value);
+                let count = 0;
+
+                parent.answerHistory = parent.answerHistory.filter(h => !idsToDelete.includes(h.id));
+                count = idsToDelete.length;
+
+                saveDataToFirebase();
+                renderAnswerHistory();
+                alert(`已成功刪除 ${count} 筆作答記錄！`);
+            } catch(e) {
+                console.error('Delete selected history records error:', e);
+                alert('刪除記錄時發生錯誤');
             }
         };
 
@@ -5509,6 +5568,14 @@ function switchPortal(role) {
                     sec.classList.add('hidden');
                 }
             });
+            // 【V150 Fix】切換到記錄 tab 時重新載入答題歷史
+            if (tabName === 'records') {
+                try { renderChildQuizHistory(); } catch(e) { console.error('switchChildSubTab records render error:', e); }
+            }
+            // 【V150】切換到獎勵 tab 時刷新星星日誌
+            if (tabName === 'rewards') {
+                try { renderChildStarLogs(); } catch(e) { console.error('switchChildSubTab rewards render error:', e); }
+            }
         };
 
         function renderChildDifficultyButtons() {
@@ -5578,6 +5645,19 @@ function switchPortal(role) {
                 return;
             }
 
+            // 【V150 新增】更新難度題數統計顯示
+            const totalInDiff = parent.questionBank.filter(q => q.difficulty === diffName && (q.assignedChild === 'ALL' || q.assignedChild === currentChildId)).length;
+            const answeredCount = parent.answerHistory.filter(h => h.childId === currentChildId && h.questionId && parent.questionBank.some(q => q.id === h.questionId && q.difficulty === diffName && (q.assignedChild === 'ALL' || q.assignedChild === currentChildId))).length;
+            const unansweredCount = totalInDiff - answeredCount;
+            
+            const statsInline = document.getElementById('quizStatsInline');
+            if (statsInline) {
+                statsInline.classList.remove('hidden');
+                document.getElementById('statTotalQuestions').textContent = totalInDiff;
+                document.getElementById('statAnsweredQuestions').textContent = answeredCount;
+                document.getElementById('statUnansweredQuestions').textContent = Math.max(0, unansweredCount);
+            }
+            
             currentQuizQuestion = availableQuestions[0];
             renderQuizCard(currentQuizQuestion);
             
@@ -5719,7 +5799,9 @@ function switchPortal(role) {
             });
 
             saveDataToFirebase();
-            renderChildContent();
+            try { renderChildContent(); } catch(e) { console.error('renderChildContent error after answer:', e); }
+            // 【V150 確保】答完題後強制刷新記錄列表
+            try { renderChildQuizHistory(); } catch(e) { console.error('renderChildQuizHistory error:', e); }
             
             // 停止答題計時器
             if (window.quizTimerInterval) {
@@ -7107,27 +7189,11 @@ function switchPortal(role) {
       }
     };
     
-    // Update active rules badges in quiz area
+        // 【V150 修改】updateFlashQuizBadges 已簡化為空操作（文字框已移除，但函數保留以防其他代碼調用報錯）
     function updateFlashQuizBadges() {
       try {
-        const badgesContainer = document.getElementById('flashActiveRulesBadges');
-        const hintContainer = document.getElementById('flashActiveRulesQuizHint');
-        if (!badgesContainer) return;
-        
-        const activeRules = flashRulesList.filter(r => r.active);
-        if (activeRules.length > 0 && hintContainer) {
-          hintContainer.classList.remove('hidden');
-        } else if (hintContainer) {
-          hintContainer.classList.add('hidden');
-        }
-        
-        badgesContainer.innerHTML = activeRules.map(r => {
-          let label = '';
-          if (r.type === 'correct_streak') label = `連對${r.threshold}`;
-          else if (r.type === 'wrong_streak') label = `連錯${r.threshold}`;
-          else label = '完成答題';
-          return `<span class="flash-active-rule-badge">${r.ipName} (${label})</span>`;
-        }).join('');
+        // 文字框已移除，此函數僅保留作為空操作以防止 ReferenceError
+        // IP 慶祝動畫觸發邏輯（triggerFlashCelebration）不受影響
       } catch(e) {
         console.error('Update quiz badges error:', e);
       }
