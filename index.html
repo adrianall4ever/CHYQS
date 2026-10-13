@@ -426,414 +426,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- SheetJS (xlsx) for Standard Excel Import/Export -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
-        // ============================================
-        // 難度區間時間設定功能
-        // ============================================
-        let currentTimeDiffName = null;
-        
-        window.openDiffTimeSettings = function(diffName) {
-            try {
-                const parent = getCurrentParent();
-                if (!parent) return;
-                
-                currentTimeDiffName = diffName;
-                document.getElementById('timeDiffName').textContent = diffName;
-                
-                // 填充子帳號選擇器
-                const select = document.getElementById('timeChildSelect');
-                select.innerHTML = parent.subAccounts.map(child => 
-                    '<option value="' + child.id + '">' + child.name + '</option>'
-                ).join('');
-                
-                // 載入當前選中子帳號的時間設定
-                loadTimeSettingsForChild(diffName, select.value);
-                
-                // 渲染記錄表格
-                renderTimeSettingsRecords(diffName);
-                
-                document.getElementById('diffTimeSettingsModal').classList.remove('hidden');
-                ensureButtonsClickable('diffTimeSettingsModal');
-            } catch(e) {
-                console.error('Open diff time settings error:', e);
-            }
-        };
-        
-        // 監聽子帳號選擇器變更
-        document.addEventListener('change', function(e) {
-            if (e.target.id === 'timeChildSelect' && currentTimeDiffName) {
-                loadTimeSettingsForChild(currentTimeDiffName, e.target.value);
-            }
-            if (e.target.id === 'limitChildSelect') {
-                loadDailyLimitForChild(e.target.value);
-            }
-        });
-        
-        function loadTimeSettingsForChild(diffName, childId) {
-            try {
-                const parent = getCurrentParent();
-                if (!parent) return;
-                const diff = parent.difficulties.find(d => d.name === diffName);
-                if (!diff) return;
-                
-                // 獲取該區間的時間設定
-                const timeSettings = diff.timeSettings || {};
-                const childSettings = timeSettings[childId] || {};
-                
-                document.getElementById('timeStart').value = childSettings.start || '';
-                document.getElementById('timeEnd').value = childSettings.end || '';
-            } catch(e) {
-                console.error('Load time settings error:', e);
-            }
-        }
-        
-        window.saveDiffTimeSettings = function() {
-            try {
-                const parent = getCurrentParent();
-                if (!parent || !currentTimeDiffName) return;
-                
-                const childId = document.getElementById('timeChildSelect').value;
-                const startTime = document.getElementById('timeStart').value || '';
-                const endTime = document.getElementById('timeEnd').value || '';
-                
-                const diff = parent.difficulties.find(d => d.name === currentTimeDiffName);
-                if (!diff) return;
-                
-                // 初始化 timeSettings
-                if (!diff.timeSettings) {
-                    diff.timeSettings = {};
-                }
-                
-                // 記錄舊設定用於歷史記錄
-                const oldSettings = diff.timeSettings[childId] || {};
-                
-                // 儲存新設定
-                diff.timeSettings[childId] = {
-                    start: startTime,
-                    end: endTime,
-                    updatedAt: new Date().toISOString()
-                };
-                
-                // 添加到時間設定歷史記錄
-                if (!diff.timeSettingsHistory) {
-                    diff.timeSettingsHistory = [];
-                }
-                diff.timeSettingsHistory.push({
-                    childId: childId,
-                    childName: parent.subAccounts.find(s => s.id === childId)?.name || '未知',
-                    start: startTime,
-                    end: endTime,
-                    action: oldSettings.start || oldSettings.end ? '修改' : '新增',
-                    timestamp: new Date().toISOString()
-                });
-                
-                // 保留最近50筆記錄
-                if (diff.timeSettingsHistory.length > 50) {
-                    diff.timeSettingsHistory = diff.timeSettingsHistory.slice(-50);
-                }
-                
-                saveDataToFirebase();
-                
-                // 重新渲染記錄表格
-                renderTimeSettingsRecords(currentTimeDiffName);
-                
-                alert('時間設定已儲存！');
-                ensureButtonsClickable('diffTimeSettingsModal');
-            } catch(e) {
-                console.error('Save diff time settings error:', e);
-                alert('儲存設定時發生錯誤');
-            }
-        };
-        
-        window.resetDiffTimeSettings = function() {
-            try {
-                if (!confirm('確定要重置所有時間設定嗎？（所有子帳號將恢復為無時限）')) return;
-                
-                const parent = getCurrentParent();
-                if (!parent || !currentTimeDiffName) return;
-                
-                const diff = parent.difficulties.find(d => d.name === currentTimeDiffName);
-                if (!diff) return;
-                
-                // 清空時間設定
-                diff.timeSettings = {};
-                
-                // 記錄重置操作
-                if (!diff.timeSettingsHistory) {
-                    diff.timeSettingsHistory = [];
-                }
-                diff.timeSettingsHistory.push({
-                    childId: 'ALL',
-                    childName: '全部子帳號',
-                    start: '',
-                    end: '',
-                    action: '重置所有設定',
-                    timestamp: new Date().toISOString()
-                });
-                
-                saveDataToFirebase();
-                
-                // 重新渲染記錄表格
-                renderTimeSettingsRecords(currentTimeDiffName);
-                
-                // 清空表單
-                document.getElementById('timeStart').value = '';
-                document.getElementById('timeEnd').value = '';
-                
-                alert('所有時間設定已重置為無時限！');
-                ensureButtonsClickable('diffTimeSettingsModal');
-            } catch(e) {
-                console.error('Reset diff time settings error:', e);
-                alert('重置設定時發生錯誤');
-            }
-        };
-        
-        function renderTimeSettingsRecords(diffName) {
-            try {
-                const parent = getCurrentParent();
-                if (!parent) return;
-                
-                const diff = parent.difficulties.find(d => d.name === diffName);
-                if (!diff) return;
-                
-                const history = diff.timeSettingsHistory || [];
-                const tbody = document.getElementById('timeSettingsRecordsBody');
-                
-                if (history.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400 font-bold">目前無時間設定記錄</td></tr>';
-                    return;
-                }
-                
-                tbody.innerHTML = history.map(record => {
-                    const startStr = record.start ? new Date(record.start).toLocaleString('zh-TW') : '無';
-                    const endStr = record.end ? new Date(record.end).toLocaleString('zh-TW') : '無';
-                    const timeStr = record.start || record.end ? `${startStr} ~ ${endStr}` : '無時限';
-                    
-                    return `<tr class="border-b border-slate-100">
-                        <td class="p-2">${record.childName}</td>
-                        <td class="p-2">${startStr}</td>
-                        <td class="p-2">${endStr}</td>
-                        <td class="p-2 text-center text-xs text-slate-500">${record.action}<br><span class="text-[10px]">${new Date(record.timestamp).toLocaleString('zh-TW')}</span></td>
-                    </tr>`;
-                }).join('');
-            } catch(e) {
-                console.error('Render time settings records error:', e);
-            }
-        }
-        
-        // ============================================
-        // 難度區間每日限題功能
-        // ============================================
-        let currentLimitChildId = null;
-        let currentLimitDiffName = null;
-        
-        window.openDiffDailyLimit = function(diffName) {
-            try {
-                const parent = getCurrentParent();
-                if (!parent) return;
-                
-                currentLimitDiffName = diffName;
-                document.getElementById('limitDiffName').textContent = diffName;
-                
-                // 填充子帳號選擇器
-                const select = document.getElementById('limitChildSelect');
-                select.innerHTML = parent.subAccounts.map(child => 
-                    '<option value="' + child.id + '">' + child.name + '</option>'
-                ).join('');
-                
-                // 載入當前選中子帳號的每日限題設定
-                loadDailyLimitForChild(select.value);
-                
-                // 渲染記錄表格
-                renderDailyLimitRecords(diffName);
-                
-                document.getElementById('diffDailyLimitModal').classList.remove('hidden');
-                ensureButtonsClickable('diffDailyLimitModal');
-            } catch(e) {
-                console.error('Open diff daily limit error:', e);
-            }
-        };
-        
-        function loadDailyLimitForChild(childId) {
-            try {
-                const parent = getCurrentParent();
-                if (!parent) return;
-                
-                // 檢查是否有全域設定或該子帳號的個別設定
-                // 這裡從 difficulty 的 dailyLimitSettings 中讀取
-                // 注意：這裡需要知道當前 difficulty name，但 modal 中未儲存
-                // 暫時設為讀取全域設定（實際應用可傳入 diffName）
-                const input = document.getElementById('dailyLimitValue');
-                input.value = '0'; // 預設無限制
-            } catch(e) {
-                console.error('Load daily limit error:', e);
-            }
-        }
-        
-        window.saveDiffDailyLimit = function() {
-            try {
-                const parent = getCurrentParent();
-                if (!parent) return;
-                
-                const diffName = document.getElementById('limitDiffName').textContent;
-                const childId = document.getElementById('limitChildSelect').value;
-                const limitValue = parseInt(document.getElementById('dailyLimitValue').value) || 0;
-                
-                const diff = parent.difficulties.find(d => d.name === diffName);
-                if (!diff) return;
-                
-                // 初始化 dailyLimitSettings
-                if (!diff.dailyLimitSettings) {
-                    diff.dailyLimitSettings = {};
-                }
-                
-                // 記錄舊設定
-                const oldLimit = diff.dailyLimitSettings[childId] || 0;
-                
-                // 儲存新設定
-                diff.dailyLimitSettings[childId] = limitValue;
-                
-                // 添加到歷史記錄
-                if (!diff.dailyLimitHistory) {
-                    diff.dailyLimitHistory = [];
-                }
-                diff.dailyLimitHistory.push({
-                    childId: childId,
-                    childName: parent.subAccounts.find(s => s.id === childId)?.name || '未知',
-                    limit: limitValue,
-                    action: oldLimit !== limitValue ? '修改' : '新增',
-                    timestamp: new Date().toISOString()
-                });
-                
-                // 保留最近50筆記錄
-                if (diff.dailyLimitHistory.length > 50) {
-                    diff.dailyLimitHistory = diff.dailyLimitHistory.slice(-50);
-                }
-                
-                saveDataToFirebase();
-                
-                // 重新渲染記錄表格
-                renderDailyLimitRecords(diffName);
-                
-                alert('每日限題設定已儲存！');
-                ensureButtonsClickable('diffDailyLimitModal');
-            } catch(e) {
-                console.error('Save diff daily limit error:', e);
-                alert('儲存設定時發生錯誤');
-            }
-        };
-        
-        window.resetDiffDailyLimit = function() {
-            try {
-                if (!confirm('確定要重置所有每日限題設定嗎？（所有子帳號將恢復為無限答）')) return;
-                
-                const parent = getCurrentParent();
-                if (!parent) return;
-                
-                const diffName = document.getElementById('limitDiffName').textContent;
-                const diff = parent.difficulties.find(d => d.name === diffName);
-                if (!diff) return;
-                
-                // 清空每日限題設定
-                diff.dailyLimitSettings = {};
-                
-                // 記錄重置操作
-                if (!diff.dailyLimitHistory) {
-                    diff.dailyLimitHistory = [];
-                }
-                diff.dailyLimitHistory.push({
-                    childId: 'ALL',
-                    childName: '全部子帳號',
-                    limit: 0,
-                    action: '重置所有設定',
-                    timestamp: new Date().toISOString()
-                });
-                
-                saveDataToFirebase();
-                
-                // 重新渲染記錄表格
-                renderDailyLimitRecords(diffName);
-                
-                // 清空表單
-                document.getElementById('dailyLimitValue').value = '0';
-                
-                alert('所有每日限題設定已重置為無限答！');
-                ensureButtonsClickable('diffDailyLimitModal');
-            } catch(e) {
-                console.error('Reset diff daily limit error:', e);
-                alert('重置設定時發生錯誤');
-            }
-        };
-        
-        function renderDailyLimitRecords(diffName) {
-            try {
-                const parent = getCurrentParent();
-                if (!parent) return;
-                
-                const diff = parent.difficulties.find(d => d.name === diffName);
-                if (!diff) return;
-                
-                const history = diff.dailyLimitHistory || [];
-                const tbody = document.getElementById('dailyLimitRecordsBody');
-                
-                if (history.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-slate-400 font-bold">目前無每日限題設定記錄</td></tr>';
-                    return;
-                }
-                
-                tbody.innerHTML = history.map(record => {
-                    const limitStr = record.limit === 0 ? '無限答' : record.limit + ' 題/日';
-                    return `<tr class="border-b border-slate-100">
-                        <td class="p-2">${record.childName}</td>
-                        <td class="p-2">${limitStr}</td>
-                        <td class="p-2 text-center text-xs text-slate-500">${record.action}<br><span class="text-[10px]">${new Date(record.timestamp).toLocaleString('zh-TW')}</span></td>
-                    </tr>`;
-                }).join('');
-            } catch(e) {
-                console.error('Render daily limit records error:', e);
-            }
-        }
-        
-        // ============================================
-        // 難度區間時間/限題對學生端的影響檢查函數
-        // ============================================
-        function checkDiffAccessForChild(parentId, diffName, childId) {
-            try {
-                const parent = window.systemData.parents.find(p => p.id === parentId);
-                if (!parent) return { allowed: true, reason: '' };
-                
-                const diff = parent.difficulties.find(d => d.name === diffName);
-                if (!diff) return { allowed: true, reason: '' };
-                
-                // 檢查時間設定
-                if (diff.timeSettings && diff.timeSettings[childId]) {
-                    const settings = diff.timeSettings[childId];
-                    const now = new Date();
-                    
-                    if (settings.start && new Date(settings.start) > now) {
-                        return { allowed: false, reason: '尚未到開始時間' };
-                    }
-                    if (settings.end && new Date(settings.end) < now) {
-                        return { allowed: false, reason: '已超過完結時間' };
-                    }
-                }
-                
-                // 檢查每日限題
-                if (diff.dailyLimitSettings && diff.dailyLimitSettings[childId]) {
-                    const limit = diff.dailyLimitSettings[childId];
-                    if (limit > 0) {
-                        // 這裡可以加入每日計數邏輯
-                        // 暫時只檢查是否設有限制
-                    }
-                }
-                
-                return { allowed: true, reason: '' };
-            } catch(e) {
-                console.error('Check diff access error:', e);
-                return { allowed: true, reason: '' };
-            }
-        }
-</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <!-- Google Fonts: 載入微軟正黑體相容字型庫 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -4750,14 +4343,48 @@ function switchPortal(role) {
                 mcContainer.classList.add('hidden');
                 mediaContainer.classList.remove('hidden');
                 handwritingAnswerWrapper.classList.remove('hidden');
-                audioToggle.classList.add('hidden');
-                document.getElementById('mediaTitle').textContent = "圖片來源設定 (上傳圖片)";
+                audioToggle.classList.remove('hidden');
+                document.getElementById('mediaTitle').textContent = "圖片來源設定 (上傳圖片或輸入網址)";
+                // 更新圖片切換按鈕文字
+                const audioToggleDiv = document.getElementById('audioSourceToggle');
+                if (audioToggleDiv) {
+                    const radios = audioToggleDiv.querySelectorAll('input[type="radio"]');
+                    const labels = audioToggleDiv.querySelectorAll('span');
+                    if (radios.length >= 2) {
+                        radios[0].nextElementSibling.textContent = '圖片上傳';
+                        radios[1].nextElementSibling.textContent = '圖片網址';
+                    }
+                    if (labels.length >= 2) {
+                        labels[0].textContent = '圖片上傳';
+                        labels[1].textContent = '圖片網址';
+                    }
+                }
+                // 預設顯示檔案上傳
+                document.getElementById('fileUploadWrapper').classList.remove('hidden');
+                document.getElementById('urlInputWrapper').classList.add('hidden');
             } else if (type === '語音') {
                 mcContainer.classList.add('hidden');
                 mediaContainer.classList.remove('hidden');
                 handwritingAnswerWrapper.classList.remove('hidden');
                 audioToggle.classList.remove('hidden');
                 document.getElementById('mediaTitle').textContent = "語音來源設定 (音訊檔或 URL)";
+                // 重置語音切換按鈕文字
+                const audioToggleDiv = document.getElementById('audioSourceToggle');
+                if (audioToggleDiv) {
+                    const radios = audioToggleDiv.querySelectorAll('input[type="radio"]');
+                    const labels = audioToggleDiv.querySelectorAll('span');
+                    if (radios.length >= 2) {
+                        radios[0].nextElementSibling.textContent = '語音上傳';
+                        radios[1].nextElementSibling.textContent = '網頁 URL';
+                    }
+                    if (labels.length >= 2) {
+                        labels[0].textContent = '語音上傳';
+                        labels[1].textContent = '網頁 URL';
+                    }
+                }
+                // 預設顯示檔案上傳
+                document.getElementById('fileUploadWrapper').classList.remove('hidden');
+                document.getElementById('urlInputWrapper').classList.add('hidden');
             }
         };
 
@@ -5012,6 +4639,38 @@ function switchPortal(role) {
                     });
                 }
             });
+        };
+
+        // 從難度區間檢視視窗刪除題目
+        window.deleteQuestionFromDiff = function(qId, diffName) {
+            try {
+                const parent = getCurrentParent();
+                if (!parent) {
+                    showToast('無法獲取當前家長數據，請重新整理頁面', 'error');
+                    return;
+                }
+                if (!confirm('確定要刪除此題目嗎？')) return;
+                if (!parent.questionBank) parent.questionBank = [];
+                const beforeCount = parent.questionBank.length;
+                parent.questionBank = parent.questionBank.filter(q => q.id !== qId);
+                const afterCount = parent.questionBank.length;
+                console.log('[DeleteQuestionFromDiff] 刪除前: ' + beforeCount + ' 題, 刪除後: ' + afterCount + ' 題, 刪除 ID: ' + qId);
+                saveDataToFirebase().then(function() {
+                    renderQuestionList();
+                    renderDifficultyList();
+                    // 重新渲染難度區間題目列表
+                    if (diffName) {
+                        renderDiffQuestionsList(diffName);
+                    }
+                    showToast('題目已成功刪除', 'success');
+                }).catch(function(e) {
+                    console.error('[DeleteQuestionFromDiff] 寫入失敗:', e);
+                    showToast('刪除失敗，請檢查網路連線', 'error');
+                });
+            } catch(e) {
+                console.error('[DeleteQuestionFromDiff] 異常:', e);
+                showToast('刪除時發生錯誤', 'error');
+            }
         };
 
         // SUB TAB 2: DIFFICULTY & VIEW QUESTIONS IN DIFFICULTY AREA
@@ -5316,8 +4975,13 @@ function switchPortal(role) {
             let html = displayList.map(q => `
                 <div class="watercolor-card p-4 space-y-2 bg-white">
                     <div class="flex justify-between items-center text-xs font-black">
-                        <span class="px-2.5 py-0.5 rounded-full bg-pink-100 text-pink-700">${q.type}題</span>
-                        <span class="text-amber-500 font-extrabold">+${q.reward} 星</span>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2.5 py-0.5 rounded-full bg-pink-100 text-pink-700">${q.type}題</span>
+                            <span class="text-amber-500 font-extrabold">+${q.reward} 星</span>
+                        </div>
+                        <button onclick="deleteQuestionFromDiff('${q.id}', '${diffName}')" class="text-rose-500 hover:text-rose-700 p-1.5 rounded-lg border border-rose-200 bg-rose-50 text-xs font-black" title="刪除題目">
+                            <i class="fa-solid fa-trash-can mr-1"></i>刪除
+                        </button>
                     </div>
                     <p class="font-black text-slate-800 text-sm">${q.question}</p>
                 </div>
